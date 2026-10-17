@@ -34,12 +34,11 @@ jobs:
       - name: Run SCA with npm audit
         run: npm audit --audit-level=high
 
-      - name: Run SCA with Trivy
-        uses: aquasecurity/trivy-action@0.36.0
+      - name: Run Trivy SCA
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: 'fs'
           scan-ref: '.'
-          scanners: 'vuln'
           severity: 'HIGH,CRITICAL'
           format: 'table'
           exit-code: '0'
