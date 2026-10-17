@@ -37,3 +37,19 @@ jobs:
       - name: Scan for secrets with Gitleaks
         uses: gitleaks/gitleaks-action@v2
         continue-on-error: false
+      
+      - name: Run Dependency-Check
+        uses: dependency-check/Dependency-Check_Action@main
+        with:
+          project: 'Helmet App'
+          path: '.'
+          format: 'HTML'
+          args: >
+            --failOnCVSS 11
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-check-report
+          path: reports/
