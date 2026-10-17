@@ -34,6 +34,16 @@ jobs:
       - name: Run SCA with npm audit
         run: npm audit --audit-level=high
 
+      - name: Run SCA with Trivy
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          scanners: 'vuln'
+          severity: 'HIGH,CRITICAL'
+          format: 'table'
+          exit-code: '0'
+
       - name: Scan for secrets with Gitleaks
         uses: gitleaks/gitleaks-action@v2
         continue-on-error: false
