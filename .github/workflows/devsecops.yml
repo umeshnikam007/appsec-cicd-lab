@@ -62,3 +62,46 @@ jobs:
         with:
           name: dependency-check-report
           path: reports/
+      
+  dast:
+    name: DAST with OWASP ZAP
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Start application
+        run: |
+          npm start > app.log 2>&1 &
+          sleep 10
+          curl -f http://localhost:3000
+
+      - name: Run OWASP ZAP DAST
+        run: |
+          mkdir -p zap-reports
+          chmod 777 zap-reports
+
+          docker run --rm \
+            --network host \
+            -v "${PWD}/zap-reports:/zap/wrk/:rw" \
+            ghcr.io/zaproxy/zaproxy:stable \
+            zap-baseline.py \
+            -t http://localhost:3000 \
+            -r zap-report.html \
+            -I
+
+      - name: Upload ZAP report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: zap-report
+          path: zap-reports/
