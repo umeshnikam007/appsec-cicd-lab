@@ -27,6 +27,8 @@ jobs:
       # 2. Secrets scanning
       - name: Run Gitleaks
         uses: gitleaks/gitleaks-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         continue-on-error: false
 
       # 3. SAST - Semgrep
