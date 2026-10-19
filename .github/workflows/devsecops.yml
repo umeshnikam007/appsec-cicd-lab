@@ -25,8 +25,8 @@ jobs:
 
       # 2. Secrets scanning
       - name: Run Gitleaks
-        uses: gitleaks/gitleaks-action@v2
-        continue-on-error: true
+        uses: gitleaks/gitleaks-action@v3
+        continue-on-error: false
 
       # 3. SAST - Semgrep
       - name: Install Semgrep
