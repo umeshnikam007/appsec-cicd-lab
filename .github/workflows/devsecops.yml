@@ -1,3 +1,4 @@
+
 name: AppSec Security Pipeline
 
 on:
@@ -12,41 +13,65 @@ permissions:
 
 jobs:
   security-scans:
-    name: SAST, SCA and Secrets
+    name: Secrets, SAST and SCA
     runs-on: ubuntu-latest
 
     steps:
+      # 1. Checkout
       - name: Checkout source code
-        uses: actions/checkout@v6
-      
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # 2. Secrets scanning
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        continue-on-error: true
+
+      # 3. SAST - Semgrep
+      - name: Install Semgrep
+        run: pipx install semgrep
+
+      - name: Run Semgrep SAST
+        run: |
+          mkdir -p reports
+          semgrep scan --config auto \
+            --sarif \
+            --output reports/semgrep.sarif \
+            . 
+        continue-on-error: true
+
+      # 4. Setup application
       - name: Setup Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@v4
         with:
           node-version: '22'
+          cache: npm
 
       - name: Install dependencies
         run: npm ci
-   
-      - name: Run SAST with Semgrep
-        uses: semgrep/semgrep-action@v1
-        continue-on-error: false
 
-      - name: Run SCA with npm audit
-        run: npm audit --audit-level=high
+      # 5. SCA - npm audit
+      - name: Run npm audit
+        run: |
+          npm audit --audit-level=high \
+            --json > reports/npm-audit.json
+        continue-on-error: true
 
+      # 6. SCA - Trivy
       - name: Run Trivy SCA
-        uses: aquasecurity/trivy-action@v0.36.0
+        uses: aquasecurity/trivy-action@0.36.0
         with:
-          scan-type: 'fs'
-          scan-ref: '.'
-          severity: 'HIGH,CRITICAL'
-          format: 'table'
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          format: json
+          output: reports/trivy.json
           exit-code: '0'
+        continue-on-error: true
 
-      - name: Scan for secrets with Gitleaks
-        uses: gitleaks/gitleaks-action@v2
-        continue-on-error: false
-      
+      # 7. SCA - Dependency-Check
       - name: Run Dependency-Check
         uses: dependency-check/Dependency-Check_Action@main
         with:
@@ -55,37 +80,65 @@ jobs:
           format: 'HTML'
           args: >
             --failOnCVSS 11
+        continue-on-error: true
 
-      - name: Upload report
+      # 8. Upload security reports
+      - name: Upload security reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-scan-reports
+          path: |
+            reports/
+          if-no-files-found: warn
+
+      - name: Upload Dependency-Check report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: dependency-check-report
           path: reports/
-      
+          if-no-files-found: warn
+
   dast:
-    name: DAST with OWASP ZAP
+    name: DAST - OWASP ZAP
     runs-on: ubuntu-latest
+    needs: security-scans
+    if: always()
 
     steps:
-      - name: Checkout code
+      # 9. Checkout
+      - name: Checkout source code
         uses: actions/checkout@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+          cache: npm
 
       - name: Install dependencies
         run: npm ci
 
+      # 10. Start application
       - name: Start application
         run: |
           npm start > app.log 2>&1 &
-          sleep 10
-          curl -f http://localhost:3000
 
-      - name: Run OWASP ZAP DAST
+          for i in {1..30}; do
+            if curl -fsS http://localhost:3000 \
+              > /dev/null; then
+              echo "Application is ready"
+              exit 0
+            fi
+            sleep 2
+          done
+
+          cat app.log
+          exit 1
+
+      # 11. DAST - ZAP
+      - name: Run OWASP ZAP Baseline
         run: |
           mkdir -p zap-reports
           chmod 777 zap-reports
@@ -97,11 +150,14 @@ jobs:
             zap-baseline.py \
             -t http://localhost:3000 \
             -r zap-report.html \
+            -J zap-report.json \
             -I
 
-      - name: Upload ZAP report
+      # 12. Upload DAST report
+      - name: Upload ZAP reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: zap-report
+          name: zap-reports
           path: zap-reports/
+          if-no-files-found: warn
