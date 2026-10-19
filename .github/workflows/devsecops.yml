@@ -31,6 +31,18 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         continue-on-error: false
 
+      - name: Diagnose Gitleaks file detection
+        if: always()
+        run: |
+          docker run --rm \
+            -v "${PWD}:/repo" \
+            ghcr.io/gitleaks/gitleaks:v8.24.3 \
+            detect \
+            --source=/repo \
+            --no-git \
+            --verbose \
+            --redact
+
       # 3. SAST - Semgrep
       - name: Install Semgrep
         run: pipx install semgrep
