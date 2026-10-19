@@ -10,7 +10,8 @@ on:
 
 permissions:
   contents: read
-
+  pull-requests: read
+  
 jobs:
   security-scans:
     name: Secrets, SAST and SCA
