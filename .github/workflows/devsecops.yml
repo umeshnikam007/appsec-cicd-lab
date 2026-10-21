@@ -10,7 +10,8 @@ on:
 
 permissions:
   contents: read
-
+  pull-requests: read
+  
 jobs:
   security-scans:
     name: Secrets, SAST and SCA
@@ -25,8 +26,22 @@ jobs:
 
       # 2. Secrets scanning
       - name: Run Gitleaks
-        uses: gitleaks/gitleaks-action@v2
-        continue-on-error: true
+        uses: gitleaks/gitleaks-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: false
+
+      - name: Diagnose Gitleaks file detection
+        if: always()
+        run: |
+          docker run --rm \
+            -v "${PWD}:/repo" \
+            ghcr.io/gitleaks/gitleaks:v8.24.3 \
+            detect \
+            --source=/repo \
+            --no-git \
+            --verbose \
+            --redact
 
       # 3. SAST - Semgrep
       - name: Install Semgrep
