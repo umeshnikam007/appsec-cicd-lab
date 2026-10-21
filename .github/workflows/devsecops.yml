@@ -74,17 +74,6 @@ jobs:
           exit-code: '0'
         continue-on-error: true
 
-      # 7. SCA - Dependency-Check
-      - name: Run Dependency-Check
-        uses: dependency-check/Dependency-Check_Action@main
-        with:
-          project: 'Helmet App'
-          path: '.'
-          format: 'HTML'
-          args: >
-            --failOnCVSS 11
-        continue-on-error: true
-
       # 8. Upload security reports
       - name: Upload security reports
         if: always()
@@ -93,14 +82,6 @@ jobs:
           name: security-scan-reports
           path: |
             reports/
-          if-no-files-found: warn
-
-      - name: Upload Dependency-Check report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: dependency-check-report
-          path: reports/
           if-no-files-found: warn
 
   dast:
